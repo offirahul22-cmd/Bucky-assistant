@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Bucky 0.2 — Hybrid Assistant</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#131f32;--line:#26364d;--text:#edf4ff;--muted:#9fb0c7;--accent:#65d6c5}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#1a3150 0,#0b1220 58%);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+main{max-width:650px;margin:auto;padding:20px 15px calc(30px + env(safe-area-inset-bottom))}
+header{text-align:center;padding:18px 8px}.logo{width:68px;height:68px;margin:auto auto 10px;border-radius:22px;background:linear-gradient(145deg,#6ce2d0,#3b85b8);display:grid;place-items:center;color:#071622;font-size:32px;font-weight:850}
+h1{margin:0;font-size:28px;letter-spacing:.05em}.sub{color:var(--muted);margin:5px 0}
+.pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);background:#101b2b;padding:7px 11px;border-radius:99px;color:var(--muted);font-size:12px;margin-top:10px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.card{background:#111d2eeb;border:1px solid var(--line);border-radius:18px;padding:15px;margin:12px 0}
+h2{font-size:15px;margin:0 0 10px}.muted,.hint{color:var(--muted);font-size:13px;line-height:1.5}
+#chat{height:260px;overflow:auto;display:flex;flex-direction:column;gap:9px}
+.msg{max-width:89%;padding:10px 12px;border-radius:14px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}
+.bucky{align-self:flex-start;background:#1b2c43;border:1px solid #2a405c}.user{align-self:flex-end;background:#1d655f;color:white}
+.row{display:flex;gap:8px;margin-top:10px}.row input{flex:1;min-width:0}
+input,textarea{width:100%;background:#0b1524;border:1px solid var(--line);border-radius:12px;padding:12px;color:var(--text);font:inherit}
+button{border:0;border-radius:12px;padding:11px 14px;background:var(--accent);color:#06201d;font-weight:700;font:inherit;cursor:pointer}
+button.secondary{background:#24364d;color:var(--text);border:1px solid #354b67}
+button:disabled{opacity:.45}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button{flex:1;min-width:110px}
+#mic.listening{background:#f0a84b;color:#241500}
+ul{padding-left:19px;margin:8px 0}.item{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #24364d;font-size:14px}.item button{padding:5px 9px;font-size:12px}
+#notes{min-height:72px;resize:vertical}
+footer{text-align:center;color:#71849e;font-size:11px;padding:10px}
+</style>
+</head>
+<body><main>
+<header><div class="logo">B</div><h1>BUCKY</h1><p class="sub">Hybrid assistant · Prototype 0.2</p><div class="pill"><span class="dot"></span><span id="mode">Offline tools ready</span></div></header>
+<section class="card"><h2>Conversation</h2><div id="chat" aria-live="polite"><div class="msg bucky">Bucky 0.2 is ready, BOSS. I can work offline for basic commands, notes, and local reminders. Online AI is not connected yet.</div></div>
+<div class="row"><input id="message" placeholder="Try: what time is it? / remember buy milk" autocomplete="off"><button id="send">Send</button></div></section>
+<section class="card"><h2>Voice</h2><div class="actions"><button id="mic">🎙 Speak</button><button id="stop" class="secondary">Stop voice</button></div><p class="hint">Tap Speak to use microphone. Background “Hey Bucky” listening is not enabled; Android/browser restrictions require a separate native app implementation.</p></section>
+<section class="card"><h2>Quick offline actions</h2><div class="actions"><button class="secondary" data-cmd="What time is it?">Time</button><button class="secondary" data-cmd="What is today's date?">Date</button><button class="secondary" data-cmd="Show my notes">My notes</button><button class="secondary" data-cmd="Help">Help</button></div></section>
+<section class="card"><h2>Saved notes</h2><textarea id="notes" placeholder="Write a note. It is saved on this device."></textarea><p class="hint" id="saveState">Notes are stored locally in this browser on this phone.</p></section>
+<section class="card"><h2>Reminders (local prototype)</h2><div class="row"><input id="reminderText" placeholder="Reminder, e.g. German practice"><input id="reminderWhen" type="datetime-local" style="max-width:190px"></div><div class="row"><button id="addReminder">Save reminder</button></div><div id="reminders" class="muted">No reminders saved.</div><p class="hint">This prototype checks reminders while this page is open. It cannot guarantee alerts after the browser is closed.</p></section>
+<section class="card"><h2>Online AI connection</h2><p class="hint">Online AI is intentionally not activated yet. It needs a secure backend endpoint so your private API key is never exposed in this webpage. Do not paste API keys or passwords here.</p><p class="hint">When a secure backend is ready, this version can send chat messages to it. Offline commands and saved notes remain available without internet.</p></section>
+<footer>Project Bucky · Local-first prototype · 0.2</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id), chat=$('chat');
+function add(text,who='bucky'){const d=document.createElement('div');d.className='msg '+who;d.textContent=text;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d}
+function say(text){if(!('speechSynthesis'in window))return;speechSynthesis.cancel();let u=new SpeechSynthesisUtterance(text);u.lang='en-IN';speechSynthesis.speak(u)}
+function getNotes(){try{return JSON.parse(localStorage.getItem('bucky_notes')||'[]')}catch{return []}}
+function saveNotes(a){localStorage.setItem('bucky_notes',JSON.stringify(a))}
+function showNotes(){let a=getNotes();return a.length?'Your saved notes:\n'+a.map((n,i)=>(i+1)+'. '+n).join('\n'):'You have no saved notes yet.'}
+function answer(t){
+ let s=t.trim(), l=s.toLowerCase(), a='';
+ if(/^(hi|hello|hey)\b/.test(l))a='Hello, BOSS. Bucky 0.2 is ready.';
+ else if(l.includes('time'))a='The time on your phone is '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+'.';
+ else if(l.includes('date')||l.includes('day is it'))a='Today is '+new Date().toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'.';
+ else if(l.includes('show my notes')||l==='notes')a=showNotes();
+ else if(l.startsWith('remember ')||l.startsWith('save note ')){let n=s.replace(/^remember\s+/i,'').replace(/^save note\s+/i,'').trim();if(n){let arr=getNotes();arr.push(n);saveNotes(arr);a='Saved on this phone: '+n}else a='Tell me what you want me to remember.'}
+ else if(l==='help'||l.includes('what can you do'))a='Offline commands: ask for the time or date; say “remember …” to save a note; say “show my notes” to view saved notes. Online AI, background wake-word, and full phone controls are not connected yet.';
+ else a='I can handle basic offline commands, but my online AI brain is not connected yet. Try “what time is it?”, “remember …”, or “show my notes”.';
+ add(a);say(a);
+}
+function send(){let t=$('message').value.trim();if(!t)return;add(t,'user');$('message').value='';answer(t)}
+$('send').onclick=send;$('message').addEventListener('keydown',e=>{if(e.key==='Enter')send()});
+document.querySelectorAll('[data-cmd]').forEach(b=>b.onclick=()=>{add(b.dataset.cmd,'user');answer(b.dataset.cmd)});
+$('notes').value=localStorage.getItem('bucky_scratch')||'';
+$('notes').addEventListener('input',()=>{localStorage.setItem('bucky_scratch',$('notes').value);$('saveState').textContent='Saved on this device.'});
+function reminders(){try{return JSON.parse(localStorage.getItem('bucky_reminders')||'[]')}catch{return []}}
+function renderReminders(){let a=reminders(),box=$('reminders');box.textContent='';if(!a.length){box.textContent='No reminders saved.';return}a.forEach((r,i)=>{let d=document.createElement('div');d.className='item';let span=document.createElement('span');span.textContent=r.text+' — '+new Date(r.when).toLocaleString();let b=document.createElement('button');b.className='secondary';b.textContent='Delete';b.onclick=()=>{let x=reminders();x.splice(i,1);localStorage.setItem('bucky_reminders',JSON.stringify(x));renderReminders()};d.append(span,b);box.append(d)})}
+$('addReminder').onclick=()=>{let text=$('reminderText').value.trim(),when=$('reminderWhen').value;if(!text||!when){add('Please enter both a reminder and a date/time.');return}let a=reminders();a.push({text,when,notified:false});localStorage.setItem('bucky_reminders',JSON.stringify(a));$('reminderText').value='';renderReminders();add('Reminder saved on this phone. Keep Bucky open near the reminder time for its alert.')};
+function checkReminders(){let a=reminders(),now=Date.now(),changed=false;a.forEach(r=>{if(!r.notified&&new Date(r.when).getTime()<=now){r.notified=true;changed=true;let msg='Reminder: '+r.text;add(msg);say(msg);if('Notification'in window&&Notification.permission==='granted')new Notification('Bucky reminder',{body:r.text})}});if(changed){localStorage.setItem('bucky_reminders',JSON.stringify(a));renderReminders()}}
+renderReminders();setInterval(checkReminders,15000);checkReminders();
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition, mic=$('mic');
+if(!SR){mic.disabled=true;mic.textContent='Voice input unavailable'}
+else{let rec=new SR();rec.lang='en-IN';rec.interimResults=false;rec.onstart=()=>{mic.classList.add('listening');$('mode').textContent='Listening…'};rec.onresult=e=>{let t=e.results[0][0].transcript;$('message').value=t;add(t,'user');$('message').value='';answer(t)};rec.onerror=e=>{$('mode').textContent='Voice error: '+e.error};rec.onend=()=>{mic.classList.remove('listening');$('mode').textContent='Offline tools ready'};mic.onclick=()=>{try{rec.start()}catch(e){$('mode').textContent='Please wait and try again'}}}
+$('stop').onclick=()=>{if('speechSynthesis'in window)speechSynthesis.cancel();$('mode').textContent='Voice stopped'};
+if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script></body></html>
